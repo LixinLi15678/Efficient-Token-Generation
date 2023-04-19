@@ -5,6 +5,7 @@ import nltk
 from nltk.tokenize import word_tokenize
 from tqdm.auto import tqdm
 import math
+from transformers import GPT2Tokenizer
 
 nltk.download('punkt')  # Download the tokenizer's data
 
@@ -38,6 +39,29 @@ def calculate_accuracy(model, test_corpus, order=2):
     total_predictions = 0
     for sentence in tqdm(test_corpus, desc="Calculating accuracy"):
         tokens = word_tokenize(sentence)  # Replace GPT-2 tokenizer with word_tokenize
+        for i in range(len(tokens) - order):
+            state = tuple(tokens[i:i + order])
+            true_next_word = tokens[i + order]
+
+            # Check if the state exists in the model
+            if state in model:
+                predicted_next_word = random.choices(
+                    list(model[state].keys()),
+                    list(model[state].values())
+                )[0]
+                if predicted_next_word == true_next_word:
+                    correct_predictions += 1
+            total_predictions += 1
+
+    accuracy = correct_predictions / total_predictions * 100
+    return accuracy
+
+def calculate_accuracy_gpt2(model, test_corpus, order=2):
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    correct_predictions = 0
+    total_predictions = 0
+    for sentence in tqdm(test_corpus, desc="Calculating accuracy"):
+        tokens = tokenizer.tokenize(sentence)
         for i in range(len(tokens) - order):
             state = tuple(tokens[i:i + order])
             true_next_word = tokens[i + order]
@@ -118,14 +142,24 @@ if __name__ == '__main__':
     # Save the model
     # save_model_to_json(markov_model, "markov_model_nltk.json")
 
-    # Load the model
+    # Load the model (NLTK)
     markov_model = load_model_from_json("markov_model_nltk.json")
     print("Model loaded successfully!")
 
-    # Calculate the accuracy
+    # Load the model (GPT-2)
+    # markov_model = load_model_from_json("markov_model_gpt2.json")
+    # print("Model loaded successfully! (GPT2)")
+
+
+    # Calculate the accuracy using NLTK tokenizer
     print("Calculating accuracy...")
     accuracy = calculate_accuracy(markov_model, test_data, order=order)
     print(f"Accuracy: {accuracy}%")
+
+    # Calculate the accuracy using GPT-2 tokenizer
+    # print("Calculating accuracy...")
+    # accuracy = calculate_accuracy_gpt2(markov_model, test_data, order=order)
+    # print(f"Accuracy: {accuracy}%")
 
     # Calculate the KL-divergence
     print("Calculating KL-divergence...")
